@@ -1,0 +1,21 @@
+
+# Python environment and cache
+.venv/
+__pycache__/
+*.py[cod]
+
+# macOS
+.DS_Store
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Generated Constitution data and embeddings
+Data/raw/
+Data/processed/
+
+# Model and training artifacts
+models/
+checkpoints/
