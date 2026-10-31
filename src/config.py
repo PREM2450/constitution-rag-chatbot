@@ -14,6 +14,7 @@ class Settings:
     llm_api_key: str = ""
     embedding_model: str = "BAAI/bge-m3"
     corpus_path: str = "Data/processed"
+    embeddings_path: str = "Data/processed/constitution_embeddings.jsonl"
     index_path: str = "artifacts"
     chunk_size: int = 1200
     chunk_overlap: int = 200
@@ -39,6 +40,11 @@ class Settings:
             mapping["embedding_model"] = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
         if mapping.get("corpus_path") is None:
             mapping["corpus_path"] = os.getenv("CORPUS_PATH", "Data/processed")
+        if mapping.get("embeddings_path") is None:
+            mapping["embeddings_path"] = os.getenv(
+                "EMBEDDINGS_PATH",
+                "Data/processed/constitution_embeddings.jsonl",
+            )
         if mapping.get("index_path") is None:
             mapping["index_path"] = os.getenv("INDEX_PATH", "artifacts")
         if mapping.get("chunk_size") is None:

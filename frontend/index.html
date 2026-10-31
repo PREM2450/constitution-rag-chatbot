@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Constitution RAG — Ask the Constitution of India</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <div class="app-header__inner">
+        <h1>Constitution RAG</h1>
+        <p class="app-header__subtitle">
+          Ask questions about the Constitution of India. Answers cite the
+          retrieved Articles and source passages.
+        </p>
+        <p class="app-header__notice" role="note">
+          ⚠️ Educational information only — not legal advice.
+        </p>
+      </div>
+    </header>
+
+    <main class="chat" aria-label="Chat conversation">
+      <div class="chat__messages" id="chat-messages" aria-live="polite" aria-label="Messages">
+        <div class="message message--system">
+          <div class="message__bubble message__bubble--system">
+            Enter a question to get started. You can ask about any Article,
+            Part or provision of the Constitution of India.
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <form class="chat-input" id="chat-form" aria-label="Question form">
+      <label class="chat-input__label" for="chat-input">Your question</label>
+      <div class="chat-input__row">
+        <textarea
+          id="chat-input"
+          class="chat-input__field"
+          rows="1"
+          maxlength="1000"
+          placeholder="e.g. What does Article 21 protect?"
+          autocomplete="off"
+        ></textarea>
+        <button type="submit" id="chat-send" class="chat-input__send" aria-label="Send question">
+          <span class="chat-input__send-label">Send</span>
+        </button>
+      </div>
+      <div class="chat-input__hint" id="chat-hint">Press Enter to send, Shift + Enter for a new line.</div>
+    </form>
+
+    <footer class="app-footer">
+      <span id="backend-status" class="app-footer__status" role="status">Checking service…</span>
+      <span class="app-footer__source">Source: Constitution of India (official document)</span>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
