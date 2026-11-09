@@ -21,6 +21,9 @@ class Settings:
     retrieval_mode: str = "dense"
     top_k: int = 5
     hybrid_fusion: str = "rrf"
+    hybrid_rrf_k: int = 60
+    hybrid_dense_weight: float = 1.0
+    hybrid_bm25_weight: float = 1.0
     reranker_enabled: bool = False
     evidence_threshold: float = 0.6
     request_timeout_seconds: int = 30
@@ -57,6 +60,12 @@ class Settings:
             mapping["top_k"] = int(os.getenv("TOP_K", "5"))
         if mapping.get("hybrid_fusion") is None:
             mapping["hybrid_fusion"] = os.getenv("HYBRID_FUSION", "rrf")
+        if mapping.get("hybrid_rrf_k") is None:
+            mapping["hybrid_rrf_k"] = int(os.getenv("HYBRID_RRF_K", "60"))
+        if mapping.get("hybrid_dense_weight") is None:
+            mapping["hybrid_dense_weight"] = float(os.getenv("HYBRID_DENSE_WEIGHT", "1.0"))
+        if mapping.get("hybrid_bm25_weight") is None:
+            mapping["hybrid_bm25_weight"] = float(os.getenv("HYBRID_BM25_WEIGHT", "1.0"))
         if mapping.get("reranker_enabled") is None:
             mapping["reranker_enabled"] = os.getenv("RERANKER_ENABLED", "false").lower() in {"1", "true", "yes"}
         if mapping.get("evidence_threshold") is None:
@@ -91,6 +100,10 @@ class Settings:
             raise ValueError("retrieval_mode must be one of: dense, bm25, hybrid")
         if self.hybrid_fusion not in {"rrf", "weighted"}:
             raise ValueError("hybrid_fusion must be one of: rrf, weighted")
+        if self.hybrid_rrf_k <= 0:
+            raise ValueError("hybrid_rrf_k must be positive")
+        if self.hybrid_dense_weight <= 0 or self.hybrid_bm25_weight <= 0:
+            raise ValueError("hybrid weights must be positive")
 
     @property
     def corpus_dir(self) -> Path:
