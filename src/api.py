@@ -32,7 +32,7 @@ APP_VERSION = "0.1.0"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 
-# Documented request limit for a single question (see Docks/DESIGN.md).
+# Documented request limit for a single question (see Docs/DESIGN.md).
 MAX_QUESTION_LENGTH = 1000
 
 DEGRADED_REASONS = {
