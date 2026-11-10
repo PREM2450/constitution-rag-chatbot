@@ -188,7 +188,10 @@ def create_app(
             )
 
         try:
-            request = AskRequest(question=question, retrieval_mode=payload.get("retrieval_mode", "dense"))
+            request = AskRequest(
+                question=question,
+                retrieval_mode=payload.get("retrieval_mode", settings.retrieval_mode),
+            )
         except ValueError as exc:
             return JSONResponse(status_code=400, content={"detail": str(exc)})
 

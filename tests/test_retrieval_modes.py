@@ -33,7 +33,7 @@ class FakeEmbedder:
         return np.ones((len(texts), 4), dtype=np.float32)
 
 
-def _client(available=("dense", "bm25", "hybrid")):
+def _client(available=("dense", "bm25", "hybrid"), retrieval_mode="dense"):
     handle = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False, encoding="utf-8")
     for row in CHUNKS:
         handle.write(json.dumps(row) + "\n")
@@ -50,7 +50,9 @@ def _client(available=("dense", "bm25", "hybrid")):
             evidence_threshold=0.01,
             retrieval_mode="dense",
         )
-        settings = Settings.from_mapping({"embeddings_path": str(path)})
+        settings = Settings.from_mapping(
+            {"embeddings_path": str(path), "retrieval_mode": retrieval_mode}
+        )
         return TestClient(create_app(settings, orchestrator=orchestrator))
     finally:
         path.unlink(missing_ok=True)
@@ -79,6 +81,12 @@ class AskModeTests(unittest.TestCase):
     def test_ask_default_is_dense(self):
         payload = _client().post("/ask", json={"question": "Article 21"}).json()
         self.assertEqual(payload["retrieval_method"], "dense")
+
+    def test_ask_default_respects_configured_mode(self):
+        payload = _client(retrieval_mode="bm25").post(
+            "/ask", json={"question": "Article 21"}
+        ).json()
+        self.assertEqual(payload["retrieval_method"], "bm25")
 
     def test_ask_invalid_mode_400(self):
         response = _client().post("/ask", json={"question": "Article 21", "retrieval_mode": "magic"})
