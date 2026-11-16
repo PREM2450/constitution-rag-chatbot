@@ -1,0 +1,17 @@
+{
+  "dataset_path": "Data/processed/test_questions.jsonl",
+  "chunks_path": "Data/processed/constitution_chunks.jsonl",
+  "embeddings_path": "Data/processed/constitution_embeddings.jsonl",
+  "embedding_model": "BAAI/bge-m3",
+  "chunk_size": 1200,
+  "chunk_overlap": 200,
+  "top_k": 5,
+  "evidence_threshold": 0.6,
+  "hybrid_fusion": "rrf",
+  "hybrid_rrf_k": 60,
+  "hybrid_dense_weight": 1.0,
+  "hybrid_bm25_weight": 1.0,
+  "modes": ["dense", "bm25", "hybrid"],
+  "split": "all",
+  "output_dir": "experiments/results"
+}

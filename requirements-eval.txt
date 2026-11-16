@@ -1,0 +1,10 @@
+# Optional evaluation-only dependencies (Task 6 — RAGAS metrics).
+# Install with:  pip install -r requirements-eval.txt
+#
+# RAGAS scores faithfulness / answer relevance by calling an LLM, so it also
+# requires a configured LLM provider (see .env.example) and a generator.
+#
+# Security note: ragas <= 0.2.2 avoids published advisory GHSA-95ww-475f-pr4f
+# (SSRF, PYSEC-2026-3046). 0.4.3 is pinned for the current API; if that risk
+# matters in your environment, pin 0.2.2 instead and adapt the API calls.
+ragas==0.4.3
