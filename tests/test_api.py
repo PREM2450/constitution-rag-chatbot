@@ -16,6 +16,7 @@ from fastapi.testclient import TestClient
 
 from src.api import MAX_QUESTION_LENGTH, create_app
 from src.config import Settings
+from src.generation import GenerationError
 from src.rag import create_orchestrator
 from src.retriever import DenseRetriever, _to_chunk
 from src.schemas import AskRequest, RetrievedPassage
@@ -72,7 +73,7 @@ CHUNKS = [
 TOP_K = 5
 
 
-def _build_client():
+def _build_client(generator=None):
     chunks = [dict(chunk, embedding=None) for chunk in CHUNKS]
     for chunk in chunks:
         chunk["embedding"] = HashingEmbedder().encode([chunk["text"]])[0].tolist()
@@ -83,6 +84,7 @@ def _build_client():
     )
     orchestrator = create_orchestrator(
         retriever=retriever,
+        generator=generator,
         # The hashing-embedder scores are lower than the real model's;
         # this threshold is calibrated for the fixture only.
         evidence_threshold=0.3,
@@ -96,7 +98,10 @@ def _build_client():
         embeddings_file = Path(handle.name)
 
     try:
-        settings = Settings.from_mapping({"embeddings_path": str(embeddings_file)})
+        settings = Settings.from_mapping({
+            "embeddings_path": str(embeddings_file),
+            "retrieval_mode": "dense",
+        })
         app = create_app(settings, orchestrator=orchestrator)
         return TestClient(app)
     finally:
@@ -150,6 +155,42 @@ class AskEndpointTests(unittest.TestCase):
 
         # The answer must not pretend an LLM generated it.
         self.assertIn("extractive baseline", payload["answer"])
+
+    def test_generation_provider_failure_returns_safe_gateway_error(self):
+        class FailingGeneration:
+            name = "failing"
+
+            def generate(self, question, passages):
+                raise GenerationError("provider returned HTTP 401")
+
+        response = _build_client(FailingGeneration()).post(
+            "/ask", json={"question": "What does Article 21 protect?"}
+        )
+
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(
+            response.json()["detail"],
+            "The answer-generation provider is unavailable. Please try again.",
+        )
+        self.assertNotIn("401", response.json()["detail"])
+
+    def test_quota_failure_returns_actionable_provider_error(self):
+        class QuotaLimitedGeneration:
+            name = "quota-limited"
+
+            def generate(self, question, passages):
+                raise GenerationError(
+                    "provider returned HTTP 429",
+                    user_message="The AI provider quota is exhausted.",
+                    http_status=429,
+                )
+
+        response = _build_client(QuotaLimitedGeneration()).post(
+            "/ask", json={"question": "What does Article 21 protect?"}
+        )
+
+        self.assertEqual(response.status_code, 429)
+        self.assertIn("quota is exhausted", response.json()["detail"])
 
     def test_insufficient_evidence_abstains(self):
         client = _build_client()

@@ -109,6 +109,7 @@ def _to_chunk(record: dict[str, Any]) -> DocumentChunk:
         text=str(text),
         article=str(article) if article is not None else None,
         part=record.get("part"),
+        section=record.get("section"),
         clause=record.get("clause"),
         page=page,
         source_title=record.get("source_title", "Constitution of India"),

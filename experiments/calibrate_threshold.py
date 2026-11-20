@@ -317,14 +317,12 @@ def render_md(
     lines += [
         "## 4. Interpretation",
         "",
-        "- A single `EVIDENCE_THRESHOLD` is applied to the top-1 score of whichever "
-        "mode served the request (`src/rag.py`). Because BM25 and RRF scores live "
-        "on different scales than cosine similarity, one shared value cannot "
-        "abstain correctly for all modes.",
-        "- The calibrated per-mode values above are recommendations. Wiring them "
-        "into the API is a configuration decision and would change default "
-        "abstention behaviour, so it is documented here rather than silently "
-        "applied.",
+        "- The API applies a separate configured threshold per retrieval mode: "
+        "`DENSE_EVIDENCE_THRESHOLD`, `BM25_EVIDENCE_THRESHOLD`, and "
+        "`HYBRID_EVIDENCE_THRESHOLD`. This is necessary because cosine, BM25, "
+        "and RRF scores have different scales.",
+        "- Compare these dev-selected values with the active `.env` settings "
+        "after changing the corpus, embedding model, or retrieval configuration.",
         "- See `score_distributions.png` for the answerable vs unanswerable top-1 "
         "score histograms with the chosen cut-off.",
         "",

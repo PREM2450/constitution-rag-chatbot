@@ -15,6 +15,7 @@ time: if they are missing the API still starts, reports degraded status on
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 
@@ -24,11 +25,13 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.config import Settings
+from src.generation import GenerationError, create_generation_service
 from src.rag import RagOrchestrator
 from src.retriever import RetrieverUnavailableError
 from src.schemas import AskRequest
 
 APP_VERSION = "0.1.0"
+logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 
@@ -84,7 +87,12 @@ def _build_retrievers(settings: Settings):
 
     available = {}
     errors = {}
-    for mode in ("dense", "bm25", "hybrid"):
+    modes = (
+        ("dense", "bm25", "hybrid")
+        if settings.build_all_retrieval_modes
+        else (settings.retrieval_mode,)
+    )
+    for mode in modes:
         try:
             available[mode] = build_retriever(
                 mode,
@@ -119,7 +127,9 @@ def create_app(
         if retrievers:
             orchestrator = RagOrchestrator(
                 retrievers=retrievers,
+                generator=create_generation_service(settings),
                 evidence_threshold=settings.evidence_threshold,
+                evidence_thresholds=settings.mode_evidence_thresholds,
                 retrieval_mode=settings.retrieval_mode,
             )
         else:
@@ -203,6 +213,12 @@ def create_app(
             response = orchestrator.answer(request)
         except RetrieverUnavailableError as exc:
             return JSONResponse(status_code=503, content={"detail": exc.detail})
+        except GenerationError as exc:
+            logger.warning("Answer generation failed: %s", exc)
+            return JSONResponse(
+                status_code=exc.http_status,
+                content={"detail": exc.user_message},
+            )
         except Exception:
             return JSONResponse(
                 status_code=500,

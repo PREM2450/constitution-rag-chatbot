@@ -66,10 +66,10 @@ Success (200) returns the shared `AnswerResponse` contract from
 ```json
 {
   "answer": "...",
-  "citations": [ { "chunk_id": "...", "article": "Article 21", "page": 9,
+  "citations": [ { "chunk_id": "...", "article": "Article 21", "section": null, "page": 9,
                    "source_title": "Constitution of India", "source_url": "" } ],
   "sources":   [ { "chunk": { "chunk_id": "...", "text": "...", "article": null,
-                    "part": null, "clause": null, "page": 9, "source_title": "...",
+                    "part": null, "section": null, "clause": null, "page": 9, "source_title": "...",
                     "source_url": "", "source_version": "unknown" },
                    "score": 0.61, "rank": 1, "retrieval_method": "dense" } ],
   "insufficient_evidence": false,
@@ -88,11 +88,13 @@ Rules:
 * Citations are **built from retrieved chunk metadata only** — a citation's
   `chunk_id` is always present in `sources`. Missing Article labels are shown
   as `null`, never guessed.
-* If the top retrieval score is below `EVIDENCE_THRESHOLD`, the response has
-  `insufficient_evidence: true` with a visible warning (abstention, no
-  invented answer).
-* The `answer` generator is currently `extractive_baseline` (passages surfaced
-  verbatim, clearly labelled). It is **not** an LLM.
+* If the top retrieval score is below the configured evidence threshold, the
+  response has `insufficient_evidence: true` with a visible warning.
+* Citations always come from retrieved metadata, never model-generated text.
+* With `LLM_API_KEY` configured, answers use the configured grounded
+  OpenAI-compatible generator. Without a key, the service uses its
+  clearly-labelled extractive baseline; it never presents that baseline as an
+  LLM answer.
 
 Errors:
 
@@ -102,6 +104,8 @@ Errors:
 | 405 | Non-POST on `/ask` |
 | 422 | Malformed JSON body (FastAPI default) |
 | 500 | Unexpected server error (safe generic message) |
+| 429 | The configured AI provider is out of quota or rate-limiting requests |
+| 502 | The configured answer-generation provider failed or timed out |
 | 503 | Retrieval unavailable (index missing/corrupt or embedding model backend not installed) |
 
 ## Static frontend
@@ -112,37 +116,54 @@ step). FastAPI docs are at `/docs` and `/openapi.json`.
 ## Running locally
 
 ```bash
-# 1. Offline indexing (once): needs Data/raw/constitution-of-india.pdf
-python3 extract_pdf.py && python3 clean_text.py && python3 chunk_text.py && python3 create_embeddings.py
+# 1. Create a local environment and install dependencies
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
 
-# 2. Dependencies
-pip3 install -r requirements.txt
+# 2. Install and start local Ollama (macOS/Homebrew)
+brew install ollama
+brew services start ollama
+ollama pull qwen2.5:3b
 
-# 3. Start the API + UI
-python3 -m uvicorn src.api:app --host 127.0.0.1 --port 8000
+# 3. Use the local Ollama configuration
+cp -n .env.example .env
+
+# 4. Download the verified official PDF and build the Article-aware index
+.venv/bin/python download_constitution.py
+.venv/bin/python extract_pdf.py
+.venv/bin/python clean_text.py
+.venv/bin/python extract_articles.py
+.venv/bin/python chunk_text.py
+.venv/bin/python create_embeddings.py
+
+# 5. Start the API + UI
+.venv/bin/python -m uvicorn src.api:app --host 127.0.0.1 --port 8000
 # or
-python3 -m src.api
+.venv/bin/python -m src.api
 ```
 
-On Apple Silicon set `RAG_DEVICE=cpu` (bge-m3 can exceed MPS memory).
+The pinned PDF is the English Constitution edition marked “as on 10 September
+2026”, published in the Legislative Department's official document catalogue.
+The download script checks its SHA-256 before writing it under the ignored
+`Data/raw/` directory. The Article-aware chunker includes the Articles,
+Schedules, and appendices with page and source-version metadata.
 
-`EVIDENCE_THRESHOLD` is one scalar compared against the top-1 score of every
-mode (`src/rag.py`). The modes use different score scales, so a single value
-cannot abstain correctly for all of them: it is meaningful for dense cosine
-(~0.5–0.75), always exceeded for BM25 (unbounded scores), and never reached
-for hybrid RRF (scores ≤ ~0.033). Evaluation run `20261119_040644` calibrated
-per-mode dev thresholds — dense `0.5576`, bm25 `24.7565`, hybrid `0.0321`
-(see `experiments/results/20261119_040644/final_report.md` and
-`threshold_calibration.md`). Wiring per-mode thresholds into `Settings` is not
-done yet; the scalar default remains `0.6`.
+On Apple Silicon, `.env.example` selects `RAG_DEVICE=cpu` because `bge-m3` can
+exceed MPS memory. The embedding script honors this setting.
 
-Requires `Data/processed/constitution_embeddings.jsonl` (produced by
-`create_embeddings.py`) and the `sentence-transformers` package for real
-retrieval. Without them the server still starts and `/ask` returns 503 with a
-clear reason.
-
-Environment variables (see `.env.example`): `EMBEDDINGS_PATH`,
-`EMBEDDING_MODEL`, `TOP_K`, `EVIDENCE_THRESHOLD`, `CORS_ORIGINS`, etc.
+Environment variables (see `.env.example`): `LLM_PROVIDER`, `LLM_MODEL`,
+`LLM_BASE_URL`, `LLM_API_KEY`, `REQUEST_TIMEOUT_SECONDS`, `EMBEDDINGS_PATH`,
+`EMBEDDING_MODEL`, `TOP_K`, and `DENSE_EVIDENCE_THRESHOLD`,
+`BM25_EVIDENCE_THRESHOLD`, `HYBRID_EVIDENCE_THRESHOLD`. `EVIDENCE_THRESHOLD`
+remains as a legacy dense-threshold fallback. The example thresholds are
+scale-aware starting points, not correctness probabilities; calibrate them
+against the current corpus using the evaluation workflow in the README.
+For BM25 queries that explicitly name an Article, retrieval is restricted to
+that Article's indexed chunks; an unindexed Article returns no passages so the
+orchestrator can abstain instead of citing unrelated provisions.
+The default provider is local Ollama and requires no API key or API billing.
+For a hosted provider, set the corresponding URL, model, and secret key in
+`.env`; secrets are never returned by `/health`.
 
 ## Integration contract for other team members
 
@@ -153,18 +174,16 @@ Environment variables (see `.env.example`): `EMBEDDINGS_PATH`,
 instance from `build_retriever(mode, ...)`; `src/api.py::_build_retrievers`
 builds all modes through that factory, so no API change is needed to add one.
 
-**Pooran / RAG generation (LLM, LoRA/QLoRA):** extend
-`src/generation.py::GenerationService` (implement
-`generate(question, passages) -> str`) and pass the instance to
-`create_orchestrator(retriever=..., generator=...)` in `src/api.py`. Prompt
-construction, API-key handling and timeouts belong in your module; the API
-layer stays unchanged. Cited Articles/pages must continue to come from the
-retrieved metadata — never trust free-form model citation text.
+**Answer generation:** configure `LLM_PROVIDER`, `LLM_MODEL`, `LLM_BASE_URL`,
+and `LLM_API_KEY` in the local `.env`. The provider adapter lives in
+`src/generation.py`; tests can inject a `GenerationService` into
+`create_orchestrator`. Keep source citations sourced from retrieved metadata,
+never from free-form model output.
 
 ## Tests
 
 ```bash
-python3 -m unittest discover -s tests -v
+.venv/bin/python -m unittest discover -s tests -v
 ```
 
 `tests/test_api.py` covers health status, ask contracts, validation errors,

@@ -1,8 +1,10 @@
 
 import json
+import os
 from pathlib import Path
 
 from sentence_transformers import SentenceTransformer
+from dotenv import load_dotenv
 
 INPUT_PATH = Path("Data/processed/constitution_chunks.jsonl")
 OUTPUT_PATH = Path("Data/processed/constitution_embeddings.jsonl")
@@ -11,12 +13,25 @@ MODEL_NAME = "BAAI/bge-m3"
 BATCH_SIZE = 8
 
 
+def embedding_text(chunk):
+    """Include structural labels so Article and Schedule queries affect retrieval."""
+    metadata = " ".join(dict.fromkeys(
+        value for value in (
+            chunk.get("article"), chunk.get("section"), chunk.get("title")
+        ) if value
+    ))
+    return f"{metadata}\n{chunk['text']}" if metadata else chunk["text"]
+
+
 def main():
     if not INPUT_PATH.exists():
         raise FileNotFoundError(f"Input file not found: {INPUT_PATH}")
 
-    print(f"Loading embedding model: {MODEL_NAME}")
-    model = SentenceTransformer(MODEL_NAME)
+    load_dotenv(Path(__file__).resolve().parent / ".env")
+    model_name = os.getenv("EMBEDDING_MODEL", MODEL_NAME)
+    device = os.getenv("RAG_DEVICE") or None
+    print(f"Loading embedding model: {model_name} (device: {device or 'auto'})")
+    model = SentenceTransformer(model_name, device=device)
 
     chunks = [
         json.loads(line)
@@ -24,7 +39,7 @@ def main():
         if line.strip()
     ]
 
-    texts = [chunk["text"] for chunk in chunks]
+    texts = [embedding_text(chunk) for chunk in chunks]
 
     print(f"Generating embeddings for {len(texts)} chunks...")
 
@@ -43,7 +58,7 @@ def main():
             record = {
                 **chunk,
                 "embedding": embedding.tolist(),
-                "embedding_model": MODEL_NAME,
+                "embedding_model": model_name,
             }
             output.write(json.dumps(record, ensure_ascii=False) + "\n")
 
