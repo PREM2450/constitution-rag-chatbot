@@ -1,6 +1,6 @@
 """RAG orchestrator: connects retrieval, evidence checks and generation.
 
-Pipeline (matches Docks/ARCHITECTURE.md, section 4):
+Pipeline (matches Docs/ARCHITECTURE.md, section 4):
 
     POST /ask -> validate -> orchestrator.answer(question)
                 -> retriever.retrieve()            (ranked passages)

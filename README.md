@@ -19,8 +19,8 @@ python3 -m uvicorn src.api:app --host 127.0.0.1 --port 8000
 
 - Chat UI: `http://localhost:8000`
 - API docs: `http://localhost:8000/docs`
-- API reference / integration contract: `Docks/API.md`
-- Architecture & design: `Docks/`
+- API reference / integration contract: `Docs/API.md`
+- Architecture & design: `Docs/`
 - Tests: `python3 -m unittest discover -s tests -v`
 
 ## Evaluation results
@@ -43,5 +43,5 @@ Reproduce with `python3 experiments/run_evaluation.py --split all`, then
 | Satish Kumar | Retrieval experiments, BM25/hybrid, evaluation |
 | Pooran Singh | QA dataset, LoRA/QLoRA fine-tuned generator |
 
-Retrieval and generation are replaceable interfaces — see `Docks/API.md`
+Retrieval and generation are replaceable interfaces — see `Docs/API.md`
 §Integration contract.
