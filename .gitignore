@@ -19,3 +19,8 @@ Data/processed/
 # Model and training artifacts
 models/
 checkpoints/
+
+# Local task tracker (Satish - do not commit)
+task.md
+
+task.md

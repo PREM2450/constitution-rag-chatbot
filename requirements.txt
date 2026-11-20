@@ -6,3 +6,7 @@ numpy==2.0.2
 httpx==0.28.1
 sentence-transformers==5.1.2
 PyMuPDF==1.26.5
+rank_bm25==0.2.2
+
+# Evaluation-only deps (RAGAS, Task 6) are kept separate:
+#   pip install -r requirements-eval.txt

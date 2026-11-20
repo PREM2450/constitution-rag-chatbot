@@ -27,31 +27,69 @@ from src.retriever import RetrieverUnavailableError
 from src.schemas import AnswerResponse, AskRequest, Citation
 
 
+VALID_MODES = {"dense", "bm25", "hybrid"}
+
+
 class RagOrchestrator:
     def __init__(
         self,
-        retriever,
+        retriever=None,
         generator: GenerationService | None = None,
         evidence_threshold: float = 0.6,
         retrieval_mode: str = "dense",
+        retrievers: dict | None = None,
     ) -> None:
-        self._retriever = retriever
+        if retriever is not None and retrievers is not None:
+            raise ValueError("pass exactly one of retriever / retrievers")
+        if retrievers is not None:
+            if not retrievers:
+                raise ValueError("retrievers must not be empty")
+            unknown = set(retrievers) - VALID_MODES
+            if unknown:
+                raise ValueError(f"unknown retrieval modes: {sorted(unknown)}")
+            self._retrievers = dict(retrievers)
+            self._retriever = None
+        elif retriever is not None:
+            self._retrievers = {retrieval_mode: retriever}
+            self._retriever = retriever
+        else:
+            raise ValueError("retriever or retrievers is required")
         self._generator = generator if generator is not None else ExtractiveBaselineGenerator()
         self._evidence_threshold = float(evidence_threshold)
         self._retrieval_mode = retrieval_mode
 
     def status(self) -> dict:
+        retrievers_status = {mode: r.status() for mode, r in self._retrievers.items()}
+        primary = self._retrievers.get(self._retrieval_mode)
+        if primary is None:
+            primary = next(iter(self._retrievers.values()))
         return {
             "orchestrator": "ready",
-            "retriever": self._retriever.status(),
+            "retriever": primary.status(),
+            "retrievers": retrievers_status,
+            "available_modes": sorted(self._retrievers),
             "generator": {"name": self._generator.name},
             "evidence_threshold": self._evidence_threshold,
         }
 
+    def _select_retriever(self, mode: str):
+        retriever = self._retrievers.get(mode)
+        if retriever is None:
+            available = ", ".join(sorted(self._retrievers))
+            raise RetrieverUnavailableError(
+                reason="retrieval_mode_unavailable",
+                detail=(
+                    f"Retrieval mode '{mode}' is not available on this server "
+                    f"(available: {available})."
+                ),
+            )
+        return retriever
+
     def answer(self, request: AskRequest) -> AnswerResponse:
         request_id = uuid.uuid4().hex
 
-        passages = self._retriever.retrieve(
+        retriever = self._select_retriever(request.retrieval_mode)
+        passages = retriever.retrieve(
             request.question,
             top_k=None,  # top_k comes from the retriever's configuration
         )
@@ -101,13 +139,15 @@ class RagOrchestrator:
 
 def create_orchestrator(
     *,
-    retriever,
+    retriever=None,
+    retrievers: dict | None = None,
     generator: GenerationService | None = None,
     evidence_threshold: float = 0.6,
     retrieval_mode: str = "dense",
 ) -> RagOrchestrator:
     return RagOrchestrator(
         retriever=retriever,
+        retrievers=retrievers,
         generator=generator,
         evidence_threshold=evidence_threshold,
         retrieval_mode=retrieval_mode,

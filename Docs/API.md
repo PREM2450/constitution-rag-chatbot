@@ -22,6 +22,13 @@ Returns service and component status. Never exposes secrets.
     "retriever": {
       "kind": "dense", "ready": true, "chunks": 4102, "dimension": 1024, "top_k": 5
     },
+    "retrievers": {
+      "dense":  { "kind": "dense",  "ready": true,  "chunks": 4102, "dimension": 1024, "top_k": 5 },
+      "bm25":   { "kind": "bm25",   "ready": true,  "chunks": 4102, "top_k": 5 },
+      "hybrid": { "kind": "hybrid", "ready": true,  "chunks": 4102, "top_k": 5,
+                  "fusion": "rrf", "rrf_k": 60, "dense_weight": 1.0, "bm25_weight": 1.0 }
+    },
+    "available_modes": ["bm25", "dense", "hybrid"],
     "generator": { "name": "extractive_baseline" },
     "evidence_threshold": 0.6
   },
@@ -29,8 +36,15 @@ Returns service and component status. Never exposes secrets.
 }
 ```
 
-Degraded state (`status: "degraded"`) includes `retriever.reason`:
-`index_not_found` | `empty_index` | `corrupt_index` | `embedding_model_unavailable`.
+* `retrievers` maps each mode to its own `status()`. A mode that failed to build
+  is absent from `retrievers` and `available_modes`; the remaining modes stay
+  usable. `retriever` is the primary (configured-default-mode) entry, kept for
+  backward compatibility.
+* Degraded state (`status: "degraded"`) includes `retriever.reason`:
+  `index_not_found` | `empty_index` | `corrupt_index` |
+  `embedding_model_unavailable` | `bm25_unavailable` |
+  `hybrid_fusion_unavailable` | `retrieval_mode_unavailable`. All modes failing
+  to build yields `degraded` and `503` on `/ask`.
 
 ### `POST /ask`
 
@@ -41,7 +55,10 @@ Request:
 ```
 
 * `question` — required, 1–1000 characters (`retrieval_mode` optional, one of
-  `dense` | `bm25` | `hybrid`).
+  `dense` | `bm25` | `hybrid`). When omitted it defaults to the configured
+  `RETRIEVAL_MODE` (default `dense`); the two can differ per server.
+* Each request selects its own retriever. An unavailable mode returns `503`
+  with no silent fallback to another mode.
 
 Success (200) returns the shared `AnswerResponse` contract from
 `src/schemas.py::AnswerResponse.to_dict()`:
@@ -61,6 +78,10 @@ Success (200) returns the shared `AnswerResponse` contract from
   "warning": null
 }
 ```
+
+`retrieval_method` echoes the mode actually dispatched, and every
+`sources[].retrieval_method` matches it. For `hybrid`, the fused list is
+de-duplicated by `chunk_id`.
 
 Rules:
 
@@ -103,9 +124,17 @@ python3 -m uvicorn src.api:app --host 127.0.0.1 --port 8000
 python3 -m src.api
 ```
 
-On Apple Silicon set `RAG_DEVICE=cpu` (bge-m3 can exceed MPS memory) and a
-calibrated dev threshold, e.g. `EVIDENCE_THRESHOLD=0.5`, until evaluation
-calibrates the default.
+On Apple Silicon set `RAG_DEVICE=cpu` (bge-m3 can exceed MPS memory).
+
+`EVIDENCE_THRESHOLD` is one scalar compared against the top-1 score of every
+mode (`src/rag.py`). The modes use different score scales, so a single value
+cannot abstain correctly for all of them: it is meaningful for dense cosine
+(~0.5–0.75), always exceeded for BM25 (unbounded scores), and never reached
+for hybrid RRF (scores ≤ ~0.033). Evaluation run `20261119_040644` calibrated
+per-mode dev thresholds — dense `0.5576`, bm25 `24.7565`, hybrid `0.0321`
+(see `experiments/results/20261119_040644/final_report.md` and
+`threshold_calibration.md`). Wiring per-mode thresholds into `Settings` is not
+done yet; the scalar default remains `0.6`.
 
 Requires `Data/processed/constitution_embeddings.jsonl` (produced by
 `create_embeddings.py`) and the `sentence-transformers` package for real
@@ -121,7 +150,8 @@ Environment variables (see `.env.example`): `EMBEDDINGS_PATH`,
 `DenseRetriever`-compatible interface in `src/retriever.py` —
 `status() -> dict` and
 `retrieve(question, top_k=None) -> list[RetrievedPassage]` — and return your
-instance from a builder; wire it in `src/api.py::_build_retriever`.
+instance from `build_retriever(mode, ...)`; `src/api.py::_build_retrievers`
+builds all modes through that factory, so no API change is needed to add one.
 
 **Pooran / RAG generation (LLM, LoRA/QLoRA):** extend
 `src/generation.py::GenerationService` (implement

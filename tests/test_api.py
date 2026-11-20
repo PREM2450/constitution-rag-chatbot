@@ -114,7 +114,7 @@ class HealthEndpointTests(unittest.TestCase):
 
     def test_health_is_degraded_when_index_missing(self):
         settings = Settings.from_mapping(
-            {"embeddings_path": "does/not/exist.jsonl"}
+            {"embeddings_path": "does/not/exist.jsonl", "corpus_path": "does/not"}
         )
         client = TestClient(create_app(settings))
         response = client.get("/health")

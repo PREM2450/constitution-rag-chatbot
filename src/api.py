@@ -40,6 +40,9 @@ DEGRADED_REASONS = {
     "empty_index": "Retrieval index contains no chunks.",
     "corrupt_index": "Retrieval index is malformed.",
     "embedding_model_unavailable": "Embedding model backend unavailable on the server.",
+    "bm25_unavailable": "BM25 backend unavailable on the server.",
+    "hybrid_fusion_unavailable": "Requested hybrid fusion is not available on the server.",
+    "retrieval_mode_unavailable": "Requested retrieval mode is not available on the server.",
 }
 
 
@@ -48,21 +51,59 @@ def _parse_cors_origins(raw: str | None) -> list[str]:
     return [origin.strip() for origin in values.split(",") if origin.strip()]
 
 
+def _resolve(path: Path) -> Path:
+    if path.is_absolute():
+        return path
+    # Relative settings are resolved against the repository root so the
+    # server can be started from any working directory.
+    return PROJECT_ROOT / path
+
+
 def _build_retriever(settings: Settings):
     """Build the production dense retriever, or raise RetrieverUnavailableError."""
-    from src.retriever import build_dense_retriever
+    from src.retriever import build_retriever
 
-    embeddings_path = Path(settings.embeddings_path)
-    if not embeddings_path.is_absolute():
-        # Relative settings are resolved against the repository root so the
-        # server can be started from any working directory.
-        embeddings_path = PROJECT_ROOT / embeddings_path
-
-    return build_dense_retriever(
-        embeddings_path=embeddings_path,
+    return build_retriever(
+        "dense",
+        embeddings_path=_resolve(Path(settings.embeddings_path)),
         model_name=settings.embedding_model,
         top_k=settings.top_k,
     )
+
+
+def _build_retrievers(settings: Settings):
+    """Build all three modes independently; never silently falls back.
+
+    Returns ``(available, errors)`` dicts keyed by mode.
+    """
+    from src.retriever import build_retriever
+
+    embeddings_path = _resolve(Path(settings.embeddings_path))
+    chunks_path = _resolve(Path(settings.corpus_path) / "constitution_chunks.jsonl")
+    chunks_to_use = chunks_path if chunks_path.exists() else embeddings_path
+
+    available = {}
+    errors = {}
+    for mode in ("dense", "bm25", "hybrid"):
+        try:
+            available[mode] = build_retriever(
+                mode,
+                embeddings_path=embeddings_path,
+                chunks_path=chunks_to_use,
+                model_name=settings.embedding_model,
+                top_k=settings.top_k,
+                fusion=settings.hybrid_fusion,
+                rrf_k=settings.hybrid_rrf_k,
+                dense_weight=settings.hybrid_dense_weight,
+                bm25_weight=settings.hybrid_bm25_weight,
+            )
+        except RetrieverUnavailableError as exc:
+            errors[mode] = exc
+        except ValueError as exc:
+            errors[mode] = RetrieverUnavailableError(
+                reason="hybrid_fusion_unavailable", detail=str(exc)
+            )
+    return available, errors
 
 
 def create_app(
@@ -74,15 +115,15 @@ def create_app(
     settings = settings if settings is not None else Settings.from_env()
 
     if retriever_error is None and orchestrator is None:
-        try:
-            retriever = _build_retriever(settings)
+        retrievers, errors = _build_retrievers(settings)
+        if retrievers:
             orchestrator = RagOrchestrator(
-                retriever=retriever,
+                retrievers=retrievers,
                 evidence_threshold=settings.evidence_threshold,
                 retrieval_mode=settings.retrieval_mode,
             )
-        except RetrieverUnavailableError as exc:
-            retriever_error = exc
+        else:
+            retriever_error = errors.get(settings.retrieval_mode) or next(iter(errors.values()))
 
     app = FastAPI(
         title="Constitution RAG API",
@@ -147,7 +188,10 @@ def create_app(
             )
 
         try:
-            request = AskRequest(question=question, retrieval_mode=payload.get("retrieval_mode", "dense"))
+            request = AskRequest(
+                question=question,
+                retrieval_mode=payload.get("retrieval_mode", settings.retrieval_mode),
+            )
         except ValueError as exc:
             return JSONResponse(status_code=400, content={"detail": str(exc)})
 
