@@ -11,7 +11,7 @@
   "hybrid_rrf_k": 60,
   "hybrid_dense_weight": 1.0,
   "hybrid_bm25_weight": 1.0,
-  "modes": ["dense", "bm25", "hybrid"],
+  "modes": ["none", "dense", "bm25", "hybrid"],
   "split": "all",
   "output_dir": "experiments/results"
 }

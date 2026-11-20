@@ -23,6 +23,17 @@ python3 -m uvicorn src.api:app --host 127.0.0.1 --port 8000
 - Architecture & design: `Docks/`
 - Tests: `python3 -m unittest discover -s tests -v`
 
+## Evaluation results
+
+Latest run `20261119_040644` (180 human-verified questions, same corpus for all
+modes): hybrid recall@5 **0.741** / MRR **0.598**, dense **0.666** / **0.538**,
+BM25 **0.659** / **0.547**. Full metrics, per-category breakdown, threshold
+calibration and failure analysis:
+[`experiments/results/20261119_040644/final_report.md`](experiments/results/20261119_040644/final_report.md).
+
+Reproduce with `python3 experiments/run_evaluation.py --split all`, then
+`python3 experiments/calibrate_threshold.py --run-id <run_id>`.
+
 ## Team ownership
 
 | Member | Ownership |

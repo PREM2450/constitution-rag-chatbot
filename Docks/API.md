@@ -124,9 +124,17 @@ python3 -m uvicorn src.api:app --host 127.0.0.1 --port 8000
 python3 -m src.api
 ```
 
-On Apple Silicon set `RAG_DEVICE=cpu` (bge-m3 can exceed MPS memory) and a
-calibrated dev threshold, e.g. `EVIDENCE_THRESHOLD=0.5`, until evaluation
-calibrates the default.
+On Apple Silicon set `RAG_DEVICE=cpu` (bge-m3 can exceed MPS memory).
+
+`EVIDENCE_THRESHOLD` is one scalar compared against the top-1 score of every
+mode (`src/rag.py`). The modes use different score scales, so a single value
+cannot abstain correctly for all of them: it is meaningful for dense cosine
+(~0.5–0.75), always exceeded for BM25 (unbounded scores), and never reached
+for hybrid RRF (scores ≤ ~0.033). Evaluation run `20261119_040644` calibrated
+per-mode dev thresholds — dense `0.5576`, bm25 `24.7565`, hybrid `0.0321`
+(see `experiments/results/20261119_040644/final_report.md` and
+`threshold_calibration.md`). Wiring per-mode thresholds into `Settings` is not
+done yet; the scalar default remains `0.6`.
 
 Requires `Data/processed/constitution_embeddings.jsonl` (produced by
 `create_embeddings.py`) and the `sentence-transformers` package for real

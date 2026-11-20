@@ -1,0 +1,117 @@
+{
+  "run_id": "20261119_040644",
+  "generated_at": "2026-11-19T04:16:31.441458+00:00",
+  "config": {
+    "dataset_path": "Data/processed/test_questions.jsonl",
+    "chunks_path": "Data/processed/constitution_chunks.jsonl",
+    "embeddings_path": "Data/processed/constitution_embeddings.jsonl",
+    "embedding_model": "BAAI/bge-m3",
+    "chunk_size": 1200,
+    "chunk_overlap": 200,
+    "top_k": 5,
+    "evidence_threshold": 0.6,
+    "hybrid_fusion": "rrf",
+    "hybrid_rrf_k": 60,
+    "hybrid_dense_weight": 1.0,
+    "hybrid_bm25_weight": 1.0,
+    "modes": [
+      "none",
+      "dense",
+      "bm25",
+      "hybrid"
+    ],
+    "split": "all",
+    "output_dir": "experiments/results"
+  },
+  "dataset": {
+    "path": "D:\\Semester -5\\Deep Learning\\Project\\constitution-rag-chatbot\\Data\\processed\\test_questions.jsonl",
+    "sha256": "929a78f1f39f793c336c731ec09fdaf922673e89361c7260346bfe1a4983f092",
+    "exists": true
+  },
+  "corpus": {
+    "path": "D:\\Semester -5\\Deep Learning\\Project\\constitution-rag-chatbot\\Data\\processed\\constitution_chunks.jsonl",
+    "sha256": "3fffae984ed5472321bac46b773ad11def8dcafa11dda6cdeed3c485be0017fc",
+    "exists": true
+  },
+  "environment": {
+    "python": "3.12.4",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "packages": {
+      "numpy": "2.1.3",
+      "rank_bm25": "0.2.2",
+      "sentence_transformers": "5.1.2"
+    }
+  },
+  "ragas": {
+    "enabled": false,
+    "version": null,
+    "note": "RAGAS not run: no LLM generator configured yet. Requires `pip install -r requirements-eval.txt` and an LLM provider."
+  },
+  "results": {
+    "none": {
+      "n_questions": 180.0,
+      "n_answerable": 160.0,
+      "n_unanswerable": 20.0,
+      "recall_at_k": 0.0,
+      "hit_at_k": 0.0,
+      "mrr": 0.0,
+      "context_precision": 0.0,
+      "context_recall": 0.0,
+      "citation_accuracy": 1.0,
+      "latency_ms_mean": 0.0,
+      "latency_ms_p50": 0.0,
+      "latency_ms_p95": 0.0,
+      "cost_per_question_usd": 0.0,
+      "total_cost_usd": 0.0
+    },
+    "dense": {
+      "n_questions": 180.0,
+      "n_answerable": 160.0,
+      "n_unanswerable": 20.0,
+      "recall_at_k": 0.665625,
+      "hit_at_k": 0.675,
+      "mrr": 0.5376041666666667,
+      "context_precision": 0.14250000000000002,
+      "context_recall": 0.665625,
+      "citation_accuracy": 1.0,
+      "latency_ms_mean": 1560.5803983333342,
+      "latency_ms_p50": 1450.9902999998303,
+      "latency_ms_p95": 2567.1065999999882,
+      "cost_per_question_usd": 0.0,
+      "total_cost_usd": 0.0
+    },
+    "bm25": {
+      "n_questions": 180.0,
+      "n_answerable": 160.0,
+      "n_unanswerable": 20.0,
+      "recall_at_k": 0.659375,
+      "hit_at_k": 0.675,
+      "mrr": 0.546875,
+      "context_precision": 0.13875,
+      "context_recall": 0.659375,
+      "citation_accuracy": 1.0,
+      "latency_ms_mean": 19.857167777778766,
+      "latency_ms_p50": 16.684300000179064,
+      "latency_ms_p95": 36.2807999999859,
+      "cost_per_question_usd": 0.0,
+      "total_cost_usd": 0.0
+    },
+    "hybrid": {
+      "n_questions": 180.0,
+      "n_answerable": 160.0,
+      "n_unanswerable": 20.0,
+      "recall_at_k": 0.740625,
+      "hit_at_k": 0.75625,
+      "mrr": 0.5982291666666667,
+      "context_precision": 0.15625,
+      "context_recall": 0.740625,
+      "citation_accuracy": 1.0,
+      "latency_ms_mean": 966.7470838888878,
+      "latency_ms_p50": 937.5798999999461,
+      "latency_ms_p95": 1353.6810999999034,
+      "cost_per_question_usd": 0.0,
+      "total_cost_usd": 0.0
+    }
+  },
+  "mode_errors": {}
+}
