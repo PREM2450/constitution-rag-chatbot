@@ -8,31 +8,56 @@ with source citations, abstain when evidence is insufficient.
 ## Quick start
 
 ```bash
-pip3 install -r requirements.txt
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
 
-# Offline indexing (needs the official PDF in Data/raw/constitution-of-india.pdf)
-python3 extract_pdf.py && python3 clean_text.py && python3 chunk_text.py && python3 create_embeddings.py
+# Local answer generation (macOS/Homebrew; no paid API key)
+brew install ollama
+brew services start ollama
+ollama pull qwen2.5:3b
+
+# Copy the local Ollama configuration
+cp -n .env.example .env
+
+# Download the SHA-256-verified 2026 English edition from the Legislative Department.
+.venv/bin/python download_constitution.py
+
+# Build the Article-aware corpus and dense index (model download requires internet).
+.venv/bin/python extract_pdf.py && \
+  .venv/bin/python clean_text.py && \
+  .venv/bin/python extract_articles.py && \
+  .venv/bin/python chunk_text.py && \
+  .venv/bin/python create_embeddings.py
 
 # Start backend API + chat UI (http://localhost:8000)
-python3 -m uvicorn src.api:app --host 127.0.0.1 --port 8000
+.venv/bin/python -m uvicorn src.api:app --host 127.0.0.1 --port 8000
 ```
 
 - Chat UI: `http://localhost:8000`
 - API docs: `http://localhost:8000/docs`
 - API reference / integration contract: `Docs/API.md`
 - Architecture & design: `Docs/`
-- Tests: `python3 -m unittest discover -s tests -v`
+- Tests: `.venv/bin/python -m unittest discover -s tests -v`
+
+The default `.env.example` uses the local Ollama model. Constitution retrieval
+and answer generation run on your machine, so no OpenAI API billing is needed.
+The model download uses disk space and local RAM/CPU. To use a hosted provider
+instead, configure its URL, model, and API key in `.env`; never commit that
+file or paste a key into chat.
 
 ## Evaluation results
 
-Latest run `20261119_040644` (180 human-verified questions, same corpus for all
-modes): hybrid recall@5 **0.741** / MRR **0.598**, dense **0.666** / **0.538**,
-BM25 **0.659** / **0.547**. Full metrics, per-category breakdown, threshold
-calibration and failure analysis:
+Archived run `20261119_040644` (180 human-verified questions, fixed-size
+chunks, previous corpus version): hybrid recall@5 **0.741** / MRR **0.598**,
+dense **0.666** / **0.538**, BM25 **0.659** / **0.547**. These metrics do not
+describe the current Article-aware 2026 index. Full archived metrics and
+failure analysis:
 [`experiments/results/20261119_040644/final_report.md`](experiments/results/20261119_040644/final_report.md).
 
-Reproduce with `python3 experiments/run_evaluation.py --split all`, then
-`python3 experiments/calibrate_threshold.py --run-id <run_id>`.
+To regenerate current-corpus evaluation results, run
+`.venv/bin/python experiments/remap_gold_questions.py`, then
+`.venv/bin/python experiments/run_evaluation.py --split dev` and
+`.venv/bin/python experiments/calibrate_threshold.py --run-id <run_id>`.
 
 ## Team ownership
 

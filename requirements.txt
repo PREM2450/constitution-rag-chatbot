@@ -1,8 +1,10 @@
-# Core runtime dependencies for the Constitution RAG chatbot.
-# Python 3.9+. Install with:  pip3 install -r requirements.txt
+# Core runtime dependencies for the Constitution RAG chatbot (Python 3.9+).
+# NumPy 2.0.2 has no Python 3.14 wheel; use a compatible release there.
 fastapi==0.115.6
 uvicorn==0.34.0
-numpy==2.0.2
+python-dotenv==1.1.1
+numpy==2.0.2; python_version < "3.14"
+numpy==2.5.5; python_version >= "3.14"
 httpx==0.28.1
 sentence-transformers==5.1.2
 PyMuPDF==1.26.5

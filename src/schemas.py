@@ -10,6 +10,7 @@ class DocumentChunk:
     text: str
     article: str | None = None
     part: str | None = None
+    section: str | None = None
     clause: str | None = None
     page: int | None = None
     source_title: str = "Constitution of India"
@@ -23,6 +24,7 @@ class DocumentChunk:
             "text": self.text,
             "article": self.article,
             "part": self.part,
+            "section": self.section,
             "clause": self.clause,
             "page": self.page,
             "source_title": self.source_title,
@@ -46,6 +48,7 @@ class RetrievedPassage:
 class Citation:
     chunk_id: str
     article: str | None = None
+    section: str | None = None
     page: int | None = None
     source_title: str = "Constitution of India"
     source_url: str = ""
@@ -90,6 +93,7 @@ class AnswerResponse:
                 {
                     "chunk_id": citation.chunk_id,
                     "article": citation.article,
+                    "section": citation.section,
                     "page": citation.page,
                     "source_title": citation.source_title,
                     "source_url": citation.source_url,

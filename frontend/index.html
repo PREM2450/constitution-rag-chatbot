@@ -4,58 +4,93 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Constitution RAG — Ask the Constitution of India</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=2" />
 </head>
 <body>
   <div class="app">
     <header class="app-header">
       <div class="app-header__inner">
-        <h1>Constitution RAG</h1>
-        <p class="app-header__subtitle">
-          Ask questions about the Constitution of India. Answers cite the
-          retrieved Articles and source passages.
-        </p>
-        <p class="app-header__notice" role="note">
-          ⚠️ Educational information only — not legal advice.
-        </p>
+        <a class="brand" href="/" aria-label="Constitution RAG home">
+          <span class="brand__mark" aria-hidden="true">C</span>
+          <span class="brand__copy">
+            <span class="brand__name">Constitution <strong>RAG</strong></span>
+            <span class="brand__caption">THE CONSTITUTION OF INDIA</span>
+          </span>
+        </a>
+        <div class="app-header__status">
+          <span class="source-pill"><span class="source-pill__dot"></span>Primary source</span>
+          <span id="backend-status" class="app-footer__status" role="status">Checking service…</span>
+        </div>
       </div>
     </header>
 
     <main class="chat" aria-label="Chat conversation">
       <div class="chat__messages" id="chat-messages" aria-live="polite" aria-label="Messages">
-        <div class="message message--system">
-          <div class="message__bubble message__bubble--system">
-            Enter a question to get started. You can ask about any Article,
-            Part or provision of the Constitution of India.
+        <section class="welcome-card message--system" aria-labelledby="welcome-title">
+          <div class="welcome-card__seal" aria-hidden="true">§</div>
+          <p class="welcome-card__eyebrow">A clearer way to explore your Constitution</p>
+          <h1 id="welcome-title">Understand your rights.<br />Explore the Constitution.</h1>
+          <p class="welcome-card__description">
+            Ask in plain language. Get a grounded response with the constitutional passages
+            behind it.
+          </p>
+          <div class="welcome-card__divider"><span></span></div>
+          <p class="welcome-card__prompt-label">A few questions to get started</p>
+          <div class="welcome-card__prompts" role="group" aria-label="Suggested questions">
+            <button class="prompt-chip" type="button" data-question="What does Article 21 protect?">
+              <span class="prompt-chip__number">01</span>
+              <span>What does Article 21 protect?</span>
+              <span class="prompt-chip__arrow" aria-hidden="true">↗</span>
+            </button>
+            <button class="prompt-chip" type="button" data-question="What are the fundamental duties?">
+              <span class="prompt-chip__number">02</span>
+              <span>What are the fundamental duties?</span>
+              <span class="prompt-chip__arrow" aria-hidden="true">↗</span>
+            </button>
+            <button class="prompt-chip" type="button" data-question="How can the Constitution be amended?">
+              <span class="prompt-chip__number">03</span>
+              <span>How can the Constitution be amended?</span>
+              <span class="prompt-chip__arrow" aria-hidden="true">↗</span>
+            </button>
+            <button class="prompt-chip" type="button" data-question="What does Article 14 guarantee?">
+              <span class="prompt-chip__number">04</span>
+              <span>What does Article 14 guarantee?</span>
+              <span class="prompt-chip__arrow" aria-hidden="true">↗</span>
+            </button>
           </div>
-        </div>
+          <p class="welcome-card__footnote">Responses are grounded in the indexed source text.</p>
+        </section>
       </div>
     </main>
 
-    <form class="chat-input" id="chat-form" aria-label="Question form">
-      <label class="chat-input__label" for="chat-input">Your question</label>
-      <div class="chat-input__row">
-        <textarea
-          id="chat-input"
-          class="chat-input__field"
-          rows="1"
-          maxlength="1000"
-          placeholder="e.g. What does Article 21 protect?"
-          autocomplete="off"
-        ></textarea>
-        <button type="submit" id="chat-send" class="chat-input__send" aria-label="Send question">
-          <span class="chat-input__send-label">Send</span>
-        </button>
-      </div>
-      <div class="chat-input__hint" id="chat-hint">Press Enter to send, Shift + Enter for a new line.</div>
-    </form>
-
-    <footer class="app-footer">
-      <span id="backend-status" class="app-footer__status" role="status">Checking service…</span>
-      <span class="app-footer__source">Source: Constitution of India (official document)</span>
-    </footer>
+    <div class="composer-area">
+      <form class="chat-input" id="chat-form" aria-label="Question form">
+        <label class="chat-input__label" for="chat-input">Ask a question</label>
+        <div class="chat-input__row">
+          <textarea
+            id="chat-input"
+            class="chat-input__field"
+            rows="1"
+            maxlength="1000"
+            placeholder="e.g. What does Article 21 protect?"
+            autocomplete="off"
+          ></textarea>
+          <button type="submit" id="chat-send" class="chat-input__send" aria-label="Send question">
+            <span class="chat-input__send-label">Ask</span>
+            <span class="chat-input__send-icon" aria-hidden="true">↑</span>
+          </button>
+        </div>
+        <div class="chat-input__hint" id="chat-hint">
+          <span>Enter to send</span><span class="hint-separator">·</span><span>Shift + Enter for a new line</span>
+        </div>
+      </form>
+      <footer class="app-footer">
+        <span>Educational information only — not legal advice.</span>
+        <span>Source: Constitution of India</span>
+      </footer>
+    </div>
   </div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

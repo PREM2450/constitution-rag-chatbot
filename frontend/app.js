@@ -62,6 +62,7 @@
   function describeSource(source) {
     var meta = [];
     if (source.article) meta.push(source.article);
+    if (source.section) meta.push(source.section);
     if (source.page !== null && source.page !== undefined) {
       meta.push("PDF page " + source.page);
     }
@@ -96,7 +97,7 @@
 
     citations.forEach(function (citation) {
       var chip = el("span", "citation-chip");
-      var label = citation.article ? citation.article : citation.chunk_id;
+      var label = citation.article || citation.section || citation.chunk_id;
       chip.appendChild(el("span", null, label));
       if (citation.page !== null && citation.page !== undefined) {
         chip.appendChild(el("span", "citation-page", " · p. " + citation.page));
@@ -154,7 +155,7 @@
     fetch("/ask", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: question, retrieval_mode: "dense" }),
+      body: JSON.stringify({ question: question }),
     })
       .then(function (response) {
         return response
@@ -189,14 +190,20 @@
   function translateError(result) {
     var status = result.status;
     var detail = (result.data && result.data.detail) || null;
-    if (detail) return detail;
 
     if (status === 503) {
-      return "The retrieval service is not ready yet. The Constitution index is probably still being built. Please try again later.";
+      return (
+        detail ||
+        "The Constitution library is not ready yet. Please prepare the source index and try again."
+      );
     }
-    if (status === 422) return "The request was rejected by the server.";
-    if (status === 405) return "This request method is not allowed.";
-    return "The answer service returned HTTP " + status + ". Please try again later.";
+    if (status === 429 || status === 502) {
+      return detail || "The answer-generation provider is unavailable. Please try again.";
+    }
+    if (status === 400 && detail) return detail;
+    if (status === 422) return "Please check your question and try again.";
+    if (status === 405) return "This action is not available. Please refresh the page and try again.";
+    return "We could not complete your request right now. Please try again in a moment.";
   }
 
   /* ---------- input handling ---------- */
@@ -249,22 +256,33 @@
 
   inputEl.addEventListener("input", autoGrow);
 
+  var promptList = document.querySelector(".welcome-card__prompts");
+  promptList.addEventListener("click", function (event) {
+    var prompt = event.target.closest("[data-question]");
+    if (!prompt || pending) return;
+    inputEl.value = prompt.getAttribute("data-question");
+    autoGrow();
+    submitQuestion();
+  });
+
   /* ---------- backend status poll (best effort) ---------- */
 
   fetch("/health")
     .then(function (response) { return response.json(); })
     .then(function (health) {
       if (health.status === "ok") {
-        statusEl.textContent = "Backend connected";
+        statusEl.textContent = "Service ready";
+        statusEl.title = "The Constitution question service is ready.";
         statusEl.classList.add("app-footer__status--ok");
       } else {
-        statusEl.textContent = "Backend running but retrieval is degraded: " +
-          ((health.retrieval.retriever && health.retrieval.retriever.reason) || "unknown");
+        statusEl.textContent = "Library not ready";
+        statusEl.title = "The Constitution source index is not available yet.";
         statusEl.classList.add("app-footer__status--degraded");
       }
     })
     .catch(function () {
-      statusEl.textContent = "Backend unreachable";
+      statusEl.textContent = "Service unavailable";
+      statusEl.title = "The question service could not be reached.";
       statusEl.classList.add("app-footer__status--degraded");
     });
 

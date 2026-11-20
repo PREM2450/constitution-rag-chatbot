@@ -18,6 +18,9 @@ from src.retrieval_base import (
 from src.schemas import RetrievedPassage
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
+_ARTICLE_PREFIX_RE = re.compile(r"\barticles?\s+", re.IGNORECASE)
+_ARTICLE_NUMBER_RE = re.compile(r"(\d{1,3}[a-z]?)", re.IGNORECASE)
+_ARTICLE_SEPARATOR_RE = re.compile(r"\s*(?:,|and|&)\s*", re.IGNORECASE)
 
 
 def tokenize(text: str) -> list[str]:
@@ -28,6 +31,31 @@ def tokenize(text: str) -> list[str]:
     document frequency already down-weights very common terms.
     """
     return _TOKEN_RE.findall((text or "").lower())
+
+
+def _article_references(question: str) -> set[str]:
+    references = set()
+    for prefix in _ARTICLE_PREFIX_RE.finditer(question):
+        cursor = prefix.end()
+        while True:
+            number = _ARTICLE_NUMBER_RE.match(question, cursor)
+            if number is None:
+                break
+            references.add(number.group(1).upper())
+            cursor = number.end()
+            separator = _ARTICLE_SEPARATOR_RE.match(question, cursor)
+            if separator is None:
+                break
+            cursor = separator.end()
+    return references
+
+
+def _chunk_article_number(record: dict[str, Any]) -> str | None:
+    number = record.get("article_number")
+    if number is not None:
+        return str(number).upper()
+    match = _ARTICLE_NUMBER_RE.search(str(record.get("article", "")))
+    return match.group(1).upper() if match else None
 
 
 def build_bm25_retriever(
@@ -43,7 +71,18 @@ def build_bm25_retriever(
     or the ``rank_bm25`` backend is not installed.
     """
     chunks = load_corpus(corpus_path)
-    tokenized = [tokenize(str(_first(r, _TEXT_KEYS) or "")) for r in chunks]
+    tokenized = []
+    for record in chunks:
+        labels = (
+            record.get("article"),
+            record.get("title"),
+            record.get("section"),
+        )
+        indexed_text = " ".join(
+            [str(value) for value in labels if value]
+            + [str(_first(record, _TEXT_KEYS) or "")]
+        )
+        tokenized.append(tokenize(indexed_text))
     if index is None:
         try:
             from rank_bm25 import BM25Okapi
@@ -90,7 +129,24 @@ class BM25Retriever:
             return []
         limit = self._top_k if top_k is None else max(1, int(top_k))
         scores = np.array(self._index.get_scores(query_tokens), dtype=np.float64)
-        top_indices = np.argsort(scores)[::-1][:limit]
+        requested_articles = _article_references(question)
+        if requested_articles and scores.size:
+            candidate_indices = [
+                index
+                for index, chunk in enumerate(self._chunks)
+                if _chunk_article_number(chunk) in requested_articles
+            ]
+            if not candidate_indices:
+                return []
+            article_boost = max(float(scores.max()), 0.0) + 1.0
+            scores[candidate_indices] += article_boost
+            top_indices = sorted(
+                candidate_indices,
+                key=lambda index: scores[index],
+                reverse=True,
+            )[:limit]
+        else:
+            top_indices = np.argsort(scores)[::-1][:limit]
         passages: list[RetrievedPassage] = []
         for rank, index in enumerate(top_indices, start=1):
             passages.append(
