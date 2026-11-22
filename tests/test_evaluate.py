@@ -62,6 +62,7 @@ def _passage(chunk_id, score=1.0, rank=1):
 
 
 def _question_result(question_id, gold, retrieved, answerable=True, category="direct_article_question"):
+    """Build a QuestionResult by running a fake retriever for one question."""
     return evaluate_question(
         FakeRetriever({question_id: retrieved}),
         {
@@ -85,6 +86,7 @@ class MetricPrimitiveTests(unittest.TestCase):
         self.assertEqual(recall_at_k(["a", "c"], ["a", "b"], 2), 0.5)
 
     def test_recall_at_k_respects_k(self):
+        # Only the first k retrieved IDs count toward the metric.
         self.assertEqual(recall_at_k(["a", "b", "c"], ["c"], 1), 0.0)
         self.assertEqual(recall_at_k(["a", "b", "c"], ["c"], 3), 1.0)
 
@@ -160,6 +162,7 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(result.questions, [])
 
     def test_run_evaluation_aliases(self):
+        # The retriever key stays "dense" but the reported mode is relabelled.
         rows = [{"question_id": "q1", "question": "q1", "category": "c", "split": "dev",
                  "answerable_from_corpus": True, "evidence_chunk_ids": ["c-1"],
                  "relevant_articles": []}]

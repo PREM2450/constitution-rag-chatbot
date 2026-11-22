@@ -139,6 +139,7 @@ def run_review(args: argparse.Namespace) -> None:
     if not reviewer:
         reviewer = input("Your name (used as verified_<name>): ").strip() or "anonymous"
 
+    # Start from all rows, then narrow by review status, category, and split.
     queue = list(range(len(all_rows)))
     if args.status == "pending":
         queue = [i for i in queue if all_rows[i].get("review_status") == DRAFT]

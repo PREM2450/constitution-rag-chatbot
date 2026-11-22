@@ -30,6 +30,8 @@ class HybridRetriever:
         dense_weight: float = 1.0,
         bm25_weight: float = 1.0,
     ) -> None:
+        # Fail fast on unsupported settings instead of silently ignoring them,
+        # so a misconfigured deployment is caught at build time.
         if fusion != "rrf":
             raise ValueError(
                 f"unsupported hybrid_fusion={fusion!r}: only 'rrf' is implemented "
@@ -64,11 +66,20 @@ class HybridRetriever:
         }
 
     def retrieve(self, question: str, top_k: int | None = None) -> list[RetrievedPassage]:
+        """Return the RRF-fused top ``top_k`` chunks for ``question``.
+
+        Each retriever contributes ``weight / (rrf_k + rank)`` for a chunk. A
+        chunk appearing in both lists accumulates two contributions, so
+        agreement between dense and BM25 is rewarded. Ranking is deterministic:
+        ties are broken by ``chunk_id`` so repeated runs give identical output.
+        """
         if not question or not question.strip():
             return []
         limit = self._top_k if top_k is None else max(1, int(top_k))
+        # Ask each sub-retriever for the same limit; fusion handles the merge.
         dense_passages = self._dense.retrieve(question, top_k=limit)
         bm25_passages = self._bm25.retrieve(question, top_k=limit)
+        # chunk_id -> summed RRF score, and chunk_id -> chunk metadata.
         rrf_scores: dict[str, float] = {}
         chunks: dict[str, Any] = {}
         for passage in dense_passages:
@@ -79,6 +90,7 @@ class HybridRetriever:
             cid = passage.chunk.chunk_id
             chunks.setdefault(cid, passage.chunk)
             rrf_scores[cid] = rrf_scores.get(cid, 0.0) + self._bm25_weight / (self._rrf_k + passage.rank)
+        # Sort by descending score; the secondary chunk_id key makes ties stable.
         ordered = sorted(rrf_scores.items(), key=lambda item: (-item[1], item[0]))[:limit]
         return [
             RetrievedPassage(

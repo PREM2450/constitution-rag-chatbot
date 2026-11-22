@@ -23,6 +23,7 @@ from src.schemas import RetrievedPassage
 
 
 def _passage(chunk_id, rank, method="dense"):
+    """Build a RetrievedPassage with a given rank/method for fake retrievers."""
     chunk = _to_chunk({
         "chunk_id": chunk_id,
         "text": f"sample text for {chunk_id}",
@@ -91,6 +92,8 @@ class MergeTests(unittest.TestCase):
         self.assertEqual(len(ids), len(set(ids)))
 
     def test_rrf_orders_overlap_first(self):
+        # c-2 appears in both lists (dense rank 2, bm25 rank 1), so it gets
+        # 1/(60+2) + 1/(60+1) and outranks the single-list chunks.
         passages = _hybrid(["c-1", "c-2"], ["c-2", "c-3"]).retrieve("q")
         ids = [p.chunk.chunk_id for p in passages]
         self.assertEqual(ids, ["c-2", "c-1", "c-3"])

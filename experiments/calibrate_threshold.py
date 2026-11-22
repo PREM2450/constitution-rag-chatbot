@@ -43,6 +43,7 @@ def load_raw(path: Path) -> list[dict[str, Any]]:
 
 
 def top1_score(row: dict[str, Any]) -> float | None:
+    """Score of the highest-ranked retrieved chunk (the one the API would cite)."""
     retrieved = row.get("retrieved") or []
     if not retrieved:
         return None
@@ -102,6 +103,8 @@ def evaluate_threshold(
 
     retention = ans_answered / n_ans if n_ans else 0.0
     false_answer = unans_answered / n_unans if n_unans else 0.0
+    # Youden's J rewards keeping answerable answers while penalising answers to
+    # unanswerable questions; it is the selection criterion used below.
     return {
         "threshold": threshold,
         "answerable_total": n_ans,
@@ -117,6 +120,7 @@ def evaluate_threshold(
 
 
 def calibrate_mode(mode: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Pick a threshold on dev only, then report its held-out test behaviour."""
     dev = [r for r in rows if r.get("split") == "dev"]
     test = [r for r in rows if r.get("split") == "test"]
 
@@ -161,6 +165,12 @@ def calibrate_mode(mode: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
 def failure_analysis(
     mode: str, rows: list[dict[str, Any]], threshold: float
 ) -> dict[str, Any]:
+    """Break down answerable misses and unanswerable false-answer risk.
+
+    Buckets answerable questions into full-recall hits, partial overlap, and
+    no-overlap misses, then shows how many misses the calibrated threshold
+    would have abstained on.
+    """
     def answered(row: dict[str, Any]) -> bool:
         score = top1_score(row)
         return score is not None and score >= threshold
@@ -335,6 +345,7 @@ def plot_distributions(
 ) -> None:
     import matplotlib
 
+    # Use a non-interactive backend so the script works on headless machines.
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
