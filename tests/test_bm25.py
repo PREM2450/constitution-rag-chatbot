@@ -39,6 +39,7 @@ CHUNKS = [
 
 
 def _build_retriever(chunks=CHUNKS, top_k=5):
+    """Build a real BM25Okapi index over the tiny in-memory corpus."""
     from rank_bm25 import BM25Okapi
 
     tokenized = [tokenize(chunk["text"]) for chunk in chunks]
@@ -77,11 +78,13 @@ class BM25RetrieverTests(unittest.TestCase):
         self.assertEqual(passages[0].rank, 1)
 
     def test_article_number_exact_match(self):
+        # Exercises the Article-restriction/boost path in retrieve().
         retriever = _build_retriever()
         passages = retriever.retrieve("Article 19")
         self.assertEqual(passages[0].chunk.chunk_id, "c-2")
 
     def test_empty_query_returns_empty(self):
+        # Blank and punctuation-only queries tokenize to nothing -> no results.
         retriever = _build_retriever()
         self.assertEqual(retriever.retrieve(""), [])
         self.assertEqual(retriever.retrieve("   "), [])

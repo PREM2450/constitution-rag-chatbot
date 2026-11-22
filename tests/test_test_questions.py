@@ -67,6 +67,7 @@ class TestQuestionDatasetTests(unittest.TestCase):
             self.assertGreaterEqual(splits["test"], 1, category)
 
     def test_answerability_invariants(self):
+        # Answerable rows must have evidence; unanswerable rows must have none.
         for row in self.rows:
             self.assertIsInstance(row["answerable_from_corpus"], bool)
             self.assertIsInstance(row["relevant_articles"], list)
@@ -87,6 +88,8 @@ class TestQuestionDatasetTests(unittest.TestCase):
             for chunk_id in row["evidence_chunk_ids"]:
                 self.assertIn(chunk_id, chunks, row["question_id"])
             if row["answerable_from_corpus"] and len(row["relevant_articles"]) == 1:
+                # For single-Article rows, the evidence text must name that
+                # Article (e.g. "21.") so the gold label is grounded.
                 article = row["relevant_articles"][0]
                 joined = " ".join(chunks[cid]["text"] for cid in row["evidence_chunk_ids"])
                 self.assertIn(f"{article}.", joined, row["question_id"])

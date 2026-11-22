@@ -41,6 +41,7 @@ def load_config(path: Path) -> dict:
 
 
 def load_questions(path: Path, split: str, limit: int | None) -> list[dict]:
+    """Load gold questions, optionally filtering to one split and/or first N."""
     rows = [
         json.loads(line)
         for line in path.read_text(encoding="utf-8").splitlines()
@@ -54,9 +55,16 @@ def load_questions(path: Path, split: str, limit: int | None) -> list[dict]:
 
 
 def build_retrievers(config: dict, modes: list[str]) -> tuple[dict, dict]:
-    """Build requested retrievers; return (available, errors) keyed by mode."""
+    """Build requested retrievers; return (available, errors) keyed by mode.
+
+    A mode that cannot be built (missing corpus/backend) is recorded in
+    ``errors`` rather than aborting the whole run, so the remaining modes still
+    produce comparable results.
+    """
     embeddings_path = ROOT / config["embeddings_path"]
     chunks_path = ROOT / config["chunks_path"]
+    # BM25 only needs text; fall back to the embeddings file if the plain
+    # chunks file is absent (both carry the same ``text`` field).
     chunks_to_use = chunks_path if chunks_path.exists() else embeddings_path
 
     available: dict = {}
@@ -94,6 +102,7 @@ def save_run(
     run_dir = output_dir / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
+    # Persist the per-question detail needed by calibrate_threshold.py.
     for mode, result in results.items():
         if not result.questions:
             continue
@@ -102,6 +111,7 @@ def save_run(
             for question in result.questions:
                 handle.write(json.dumps(question.to_dict(), ensure_ascii=False) + "\n")
 
+    # Record skipped modes in the manifest so the run is self-describing.
     manifest["mode_errors"] = errors
     (run_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"

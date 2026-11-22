@@ -29,6 +29,10 @@ TOP_K = 5
 
 
 def _pick_corpus() -> Path:
+    """Prefer the plain chunk corpus; fall back to the embeddings JSONL.
+
+    Both files carry the same ``text`` field, so BM25 can use either one.
+    """
     if DEFAULT_CHUNKS_PATH.exists():
         return DEFAULT_CHUNKS_PATH
     return DEFAULT_EMBEDDINGS_PATH
@@ -58,6 +62,7 @@ def main(argv: list[str] | None = None) -> int:
             return
         for p in passages:
             c = p.chunk
+            # Show only a preview; the full text is in the corpus file.
             print(f"--- Rank {p.rank} | BM25 score {p.score:.2f} | {c.article or 'article unknown'} | p.{c.page} | {c.chunk_id} ---")
             print(c.text[:400].strip())
             print()

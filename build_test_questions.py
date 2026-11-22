@@ -32,7 +32,8 @@ CATEGORY_ORDER = [
     "unanswerable_out_of_corpus",
 ]
 
-# article, reference answer, topic, keyword, evidence heading
+# Each FACTS row is (article, reference answer, topic, keyword, evidence heading).
+# The heading is the exact Article heading text used to locate the chunk below.
 FACTS = [
     ("1", "India, that is Bharat, shall be a Union of States; its territory comprises the territories of the States, the Union territories, and such other territories as may be acquired.", "the name and territory of the Union", "India, that is Bharat", "1. Name and territory of the Union"),
     ("3", "Parliament may by law form a new State, increase or diminish the area of a State, alter its boundaries, or alter its name.", "the formation of new States and alteration of State boundaries", "formation of new States", "3. Formation of new States"),
@@ -173,6 +174,13 @@ def resolve_evidence_list(chunks: list[dict], headings: list[str]) -> list[str]:
 
 
 def resolve_evidence(chunks: list[dict], heading: str) -> str:
+    """Find the single chunk whose body contains the Article heading.
+
+    The front matter (contents pages) is skipped because it repeats every
+    heading; requiring an em dash shortly after the heading further ensures we
+    matched the actual Article body rather than a contents entry. Fails loudly
+    if the heading is missing or ambiguous instead of guessing a chunk ID.
+    """
     matches = []
     for chunk in chunks:
         if chunk["page_start"] < 30:
@@ -256,6 +264,12 @@ def build_rows(chunks: list[dict]) -> list[dict]:
 
 
 def assign_ids_and_splits(rows: list[dict]) -> None:
+    """Assign stable IDs, then freeze the dev/test split per category.
+
+    IDs are assigned in row order, so they are deterministic. The first
+    ``ceil(25%)`` of each category (in ID order) becomes the dev/tuning set and
+    the rest is held-out test; this keeps every category represented in both.
+    """
     for i, row in enumerate(rows, start=1):
         row["question_id"] = f"q{i:03d}"
 

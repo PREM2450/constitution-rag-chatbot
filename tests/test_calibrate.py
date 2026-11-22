@@ -32,6 +32,7 @@ def make_row(
     category="direct_article_question",
     split="dev",
 ):
+    """Create one raw-result row shaped like raw_<mode>.jsonl."""
     retrieved = [
         {"chunk_id": f"c{i}", "score": score, "rank": i + 1, "retrieval_method": "fake"}
         for i in range(2)
@@ -69,6 +70,7 @@ class ThresholdSweepTests(unittest.TestCase):
         self.assertEqual(strict["youden_j"], 0.5)
 
     def test_unanswerable_answered_lowers_j(self):
+        # Answering an unanswerable question drives Youden's J negative.
         rows = [make_row("u1", False, 0.9)]
         stats = evaluate_threshold(rows, 0.6)
         self.assertEqual(stats["unanswerable_abstention"], 0.0)

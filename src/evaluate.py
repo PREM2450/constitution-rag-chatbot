@@ -89,6 +89,7 @@ class ModeResult:
 
 
 def recall_at_k(retrieved_ids: Iterable[str], gold_ids: Iterable[str], k: int) -> float:
+    """Fraction of gold evidence chunks found in the top-k retrieved list."""
     gold = set(gold_ids)
     if not gold:
         return 0.0
@@ -97,6 +98,7 @@ def recall_at_k(retrieved_ids: Iterable[str], gold_ids: Iterable[str], k: int) -
 
 
 def hit_at_k(retrieved_ids: Iterable[str], gold_ids: Iterable[str], k: int) -> float:
+    """1.0 if any gold chunk appears in the top-k, else 0.0 (per question)."""
     gold = set(gold_ids)
     if not gold:
         return 0.0
@@ -104,6 +106,7 @@ def hit_at_k(retrieved_ids: Iterable[str], gold_ids: Iterable[str], k: int) -> f
 
 
 def reciprocal_rank(retrieved_ids: Iterable[str], gold_ids: Iterable[str]) -> float:
+    """1 / rank of the first gold chunk, or 0.0 if none is retrieved."""
     gold = set(gold_ids)
     for rank, chunk_id in enumerate(retrieved_ids, start=1):
         if chunk_id in gold:
@@ -112,6 +115,7 @@ def reciprocal_rank(retrieved_ids: Iterable[str], gold_ids: Iterable[str]) -> fl
 
 
 def context_precision(retrieved_ids: Iterable[str], gold_ids: Iterable[str]) -> float:
+    """Fraction of retrieved chunks that are gold evidence (no k cutoff)."""
     retrieved = list(retrieved_ids)
     if not retrieved:
         return 0.0
@@ -153,7 +157,11 @@ def evaluate_question(
     row: dict[str, Any],
     top_k: int,
 ) -> QuestionResult:
-    """Run one question through a retriever, timing the retrieval call."""
+    """Run one question through a retriever, timing the retrieval call.
+
+    ``retriever=None`` is the structural ``none`` baseline: it returns no
+    passages and zero latency, giving an all-zero reference row.
+    """
     question = str(row["question"])
     if retriever is None:
         passages: list[Any] = []
@@ -186,6 +194,11 @@ def evaluate_question(
 
 
 def compute_metrics(results: list[QuestionResult], top_k: int) -> dict[str, float]:
+    """Aggregate per-question results into the metrics reported in results.md.
+
+    Retrieval quality metrics are averaged over answerable questions only;
+    unanswerable questions have no gold chunks and are reported separately.
+    """
     answerable = [r for r in results if r.answerable]
     latencies = [r.latency_ms for r in results]
 

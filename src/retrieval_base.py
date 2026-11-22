@@ -43,6 +43,11 @@ class RetrieverUnavailableError(RuntimeError):
 
 
 def _first(record: dict[str, Any], keys: tuple[str, ...]) -> Any:
+    """Return the first present, non-null value among ``keys``.
+
+    Lets callers accept either corpus field name (e.g. ``page_start`` or
+    ``page``) without knowing which pipeline version produced the record.
+    """
     for key in keys:
         if key in record and record[key] is not None:
             return record[key]
@@ -90,12 +95,21 @@ def load_corpus(embeddings_path: Path | str) -> list[dict[str, Any]]:
 
 
 def _normalize(vectors: np.ndarray) -> np.ndarray:
+    """L2-normalize each row so dot product equals cosine similarity.
+
+    Zero rows are left as zeros (norm forced to 1) to avoid division by zero.
+    """
     norms = np.linalg.norm(vectors, axis=1, keepdims=True)
     norms[norms == 0.0] = 1.0
     return vectors / norms
 
 
 def _to_chunk(record: dict[str, Any]) -> DocumentChunk:
+    """Convert a raw corpus record into the typed ``DocumentChunk`` schema.
+
+    Missing Article/Part/clause fields stay ``None`` — they are never guessed,
+    so downstream citations can honestly report what the corpus actually has.
+    """
     text = _first(record, _TEXT_KEYS)
     page = _first(record, _PAGE_KEYS)
     article = _first(record, _ARTICLE_KEYS)
@@ -103,6 +117,7 @@ def _to_chunk(record: dict[str, Any]) -> DocumentChunk:
         try:
             page = int(page)
         except (TypeError, ValueError):
+            # A non-numeric page value is treated as absent rather than fatal.
             page = None
     return DocumentChunk(
         chunk_id=str(record["chunk_id"]),
