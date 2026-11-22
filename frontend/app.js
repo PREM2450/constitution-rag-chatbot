@@ -25,6 +25,7 @@
   function el(tag, className, textContent) {
     var node = document.createElement(tag);
     if (className) node.className = className;
+    // Render questions and model responses as text, never as parsed HTML.
     if (textContent !== undefined && textContent !== null) node.textContent = textContent;
     return node;
   }

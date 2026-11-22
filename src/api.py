@@ -166,7 +166,7 @@ def create_app(
 
     @app.post("/ask")
     def ask(payload: dict = Body(...)):
-        # -- request validation -------------------------------------------------
+        # Validate fields here so these client errors keep the API's 400 contract.
         if not isinstance(payload, dict):
             return JSONResponse(status_code=400, content={"detail": "Request body must be a JSON object."})
 
